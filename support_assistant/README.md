@@ -33,11 +33,17 @@ curl -X POST http://127.0.0.1:7860/ask -H 'Content-Type: application/json' -d '{
 curl -X POST http://127.0.0.1:7860/ask -H 'Content-Type: application/json' -d '{"query":"What is the capital of France?"}'
 ```
 
-The first routes to retrieval and returns `sources` such as `doc_01`; the second routes to `direct_answer` and returns an empty source list. The Docker baseline is:
+Recorded mock-mode response shapes are:
+
+```json
+{"answer":"Based on the retrieved context: Delivery Policy: Zepto delivers grocery and household essentials to serviceable pin codes within 10 to 30 minutes of order confirmation, depending on the customer's delivery zone and current order volume. Standard del","sources":["doc_01","doc_04","doc_05"],"confidence":1.0}
+{"answer":"I can only answer questions about Zepto policies right now.","sources":[],"confidence":1.0}
+```
+
+The first routes to retrieval and returns policy-document source IDs; the second routes to `direct_answer` and returns an empty source list. The Docker baseline is:
 
 ```bash
 docker build -t zepto-support ./support_assistant
 docker run --rm -p 7860:7860 -e MOCK_LLM=1 zepto-support
 ```
-
 
