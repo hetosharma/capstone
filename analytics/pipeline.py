@@ -75,6 +75,9 @@ def report_eda(df: pd.DataFrame) -> None:
     print("\nSHAPE:", df.shape)
     missing = (df.isna().mean().mul(100).round(2)).loc[lambda s: s > 0]
     print("\nMissing percentages:\n", missing.to_string())
+    for column, percentage in missing.items():
+        strategy = "drop affected rows" if percentage < 5 else ("median/mode impute" if percentage <= 30 else "encode Missing as a category")
+        print(f"Missing-value strategy for {column}: {percentage:.2f}% -> {strategy}")
     for column in ["age", "fare"]:
         values = df[column].dropna()
         q1, q3 = values.quantile([0.25, 0.75])
@@ -243,6 +246,14 @@ def main() -> None:
     cleaned = clean_eda(df)
     clf, imbalance, _, _ = classification(cleaned)
     reg = regression(cleaned)
+    classifier_table = clf.reset_index().rename(columns={"index": "model"})
+    classifier_table.insert(0, "metric_group", "classification")
+    regression_table = reg.copy()
+    regression_table.insert(0, "metric_group", "regression")
+    regression_table.insert(1, "model", "Linear Regression")
+    comparison = pd.concat([classifier_table, regression_table], ignore_index=True, sort=False)
+    comparison.to_csv(ARTIFACT_DIR / "model_comparison.csv", index=False)
+    print("\nModel comparison saved with separate classification and regression metric groups:\n", comparison)
     summary = {"classification": clf.reset_index().to_dict(orient="records"), "imbalance": imbalance.reset_index().to_dict(orient="records"), "regression": reg.to_dict(orient="records")}
     (ARTIFACT_DIR / "metrics.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print("\nFinal recommendation: deploy the classifier with the strongest validation F1/AUC balance; review the generated metrics table and choose the model whose false-negative trade-off fits the product risk.")
