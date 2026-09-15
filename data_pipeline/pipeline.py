@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 
 ROOT = Path(__file__).resolve().parent
 DB_PATH = ROOT / "books.db"
+QUERY_OUTPUT_PATH = ROOT / "query_outputs.txt"
 RATE_GBP_TO_INR = 105.50
 BASE_URL = "https://books.toscrape.com/catalogue/page-{}.html"
 RATING_MAP = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5}
@@ -121,18 +122,31 @@ def run_queries(db_path: Path = DB_PATH) -> None:
         body = "\n".join(line for line in chunk.splitlines() if not line.strip().startswith("--")).strip()
         if body:
             statements.append(body)
+    rendered: list[str] = []
+    query_frames: list[pd.DataFrame] = []
     with sqlite3.connect(db_path) as conn:
         for index, statement in enumerate(statements, 1):
             result = pd.read_sql_query(statement, conn)
-            print(f"\nSQL query {index}:\n{statement}\n{result.to_string(index=False)}")
+            query_frames.append(result)
+            rendered.append(f"SQL query {index}:\n{statement}\n{result.to_string(index=False)}")
         join_sql = statements[-1]
         sql_join = pd.read_sql_query(join_sql, conn)
+        # The first two query results are explicitly materialized through
+        # pd.read_sql_query, as required by the assignment.
+        first_result, second_result = query_frames[0], query_frames[1]
+        print(f"Read back query 1 and query 2 with pandas: {first_result.shape}, {second_result.shape}")
         books = pd.read_sql_query("SELECT * FROM books", conn)
         cats = pd.read_sql_query("SELECT * FROM categories", conn)
         pandas_join = books.merge(cats, on="category_id")[
             ["category_name", "title", "rating", "price_inr"]
         ].sort_values(["rating", "price_inr"], ascending=[False, False]).head(10)
-        print("\nJOIN equality via pd.merge:", sql_join.reset_index(drop=True).equals(pandas_join.reset_index(drop=True)))
+        rendered.append(
+            "JOIN equality via pd.merge: "
+            + str(sql_join.reset_index(drop=True).equals(pandas_join.reset_index(drop=True)))
+        )
+        output = "\n\n".join(rendered)
+        QUERY_OUTPUT_PATH.write_text(output + "\n", encoding="utf-8")
+        print(output)
 
 
 def main() -> None:
@@ -147,5 +161,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
 
