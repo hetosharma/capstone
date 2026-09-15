@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+data_pipeline/*.db
+data_pipeline/*.sqlite
+analytics/artifacts/
+analytics/figures/
+support_assistant/chroma_db/
+support_assistant/__pycache__/
+
